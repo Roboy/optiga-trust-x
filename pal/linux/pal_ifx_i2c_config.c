@@ -44,8 +44,8 @@
 pal_linux_t linux_events = {0};
 
 // If you use Raspberry Pi, you can uncomment the following lines
-// gpio_pin_t gpio_pin_vdd = 27;
-// gpio_pin_t gpio_pin_reset = 17;
+gpio_pin_t gpio_pin_vdd = 27;
+gpio_pin_t gpio_pin_reset = 17;
 
 /**
  * \brief PAL I2C configuration for OPTIGA. 
@@ -68,9 +68,9 @@ pal_i2c_t optiga_pal_i2c_context_0 =
 pal_gpio_t optiga_vdd_0 =
 {
     // Platform specific GPIO context for the pin used to toggle Vdd.
-    (void*)NULL 
+    //(void*)NULL 
     // If you use Raspberry Pi, you can uncomment the following line and comment out the previous
-    //(void*)&gpio_pin_vdd 
+    (void*)&gpio_pin_vdd 
 };
 
 /**
@@ -79,9 +79,9 @@ pal_gpio_t optiga_vdd_0 =
 pal_gpio_t optiga_reset_0 =
 {
     // Platform specific GPIO context for the pin used to toggle Reset.
-    (void*)NULL
+    //(void*)NULL
     // If you use Raspberry Pi, you can uncomment the following line and comment out the previous
-    //(void*)&gpio_pin_reset 
+    (void*)&gpio_pin_reset 
 };
 
 /**
