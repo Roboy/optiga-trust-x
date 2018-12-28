@@ -53,7 +53,8 @@
  */
 pal_status_t pal_init(void)
 {
-    return PAL_STATUS_SUCCESS;
+    	printf("pal_init success\n");
+	return 0x0000;
 }
 
 /**
@@ -73,7 +74,7 @@ pal_status_t pal_init(void)
  */
 pal_status_t pal_deinit(void)
 {
-    return PAL_STATUS_SUCCESS;
+    	return PAL_STATUS_SUCCESS;
 }
 
 /**

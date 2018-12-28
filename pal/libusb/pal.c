@@ -73,6 +73,7 @@ static libusb_device_handle *dev_handle = NULL; //a device handle
 
 pal_status_t pal_init(void)
 {
+	printf("libusb init\n");
 	struct libusb_config_descriptor* config_desc = NULL;
 	
 	if (libusb_init(NULL))

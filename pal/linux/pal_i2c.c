@@ -50,7 +50,7 @@
 #endif
 
 /// I2C device
-extern char * i2c_if;
+char * i2c_if = "/dev/i2c-1";
 
 // Slave address not initialization
 #define IFXI2C_SLAVE_ADDRESS_INIT 0xFFFF
@@ -163,7 +163,7 @@ pal_status_t pal_i2c_init(const pal_i2c_t* p_i2c_context)
 		pal_linux = (pal_linux_t*) p_i2c_context->p_i2c_hw_config;
 		pal_linux->i2c_handle = open(i2c_if, O_RDWR);
 		LOG_HAL("IFX OPTIGA TRUST X Logs \n");
-		
+		printf("IFX OPTIGA TRUX X Logs \n");	
 		// Assign the slave address
 		ret = ioctl(pal_linux->i2c_handle, I2C_SLAVE, p_i2c_context->slave_address);
 		if(PAL_STATUS_SUCCESS != ret)
