@@ -24,7 +24,7 @@
 *
 * \file example_optiga_util_read_data.c
 *
-* \brief   This file provides the example for reading data/metadata from OPTIGA using 
+* \brief   This file provides the example for reading data/metadata from OPTIGA using
 *          #optiga_util_read_data and #optiga_util_read_metadata.
 *
 * \ingroup
@@ -32,7 +32,10 @@
 */
 
 #include "optiga/optiga_util.h"
-
+#include "mbedtls/x509_crt.h"
+#include <stdio.h>
+#include <inttypes.h>
+#include <openssl/x509.h>
 /**
  * The below example demonstrates read data/metadata functionalities
  *
@@ -41,6 +44,7 @@
  */
 optiga_lib_status_t example_optiga_util_read_data(void)
 {
+    printf("Reading data...\n");
     uint16_t offset, bytes_to_read;
     uint16_t optiga_oid;
     uint8_t read_data_buffer[1024];
@@ -65,9 +69,23 @@ optiga_lib_status_t example_optiga_util_read_data(void)
 
         if (OPTIGA_LIB_SUCCESS != return_status)
         {
-			//Reading the data object failed.
+      			//Reading the data object failed.
+            printf("Could not read data\n");
             break;
         }
+        X509 *x509ser;
+        x509ser = d2i_X509(NULL, &read_data_buffer, bytes_to_read);
+
+        // int32_t ret;
+        // mbedtls_x509_crt mbedtls_cert;
+        // mbedtls_x509_crt_init(&mbedtls_cert);
+        // ret = mbedtls_x509_crt_parse_der(&mbedtls_cert, read_data_buffer, bytes_to_read);
+        // printf("%" PRId32 "\n", ret);
+
+        // for (int i=0; i<1024; i++) {
+        //    // printf("%u ", public_key[i] );
+        //     printf("%02X \t", read_data_buffer[i]);
+        // }
 
         /**
          * Read metadata of a data object (e.g. certificate data object E0E0)
@@ -82,7 +100,12 @@ optiga_lib_status_t example_optiga_util_read_data(void)
         if (OPTIGA_LIB_SUCCESS != return_status)
         {
         	// Read metadate failed
+          printf("Could not read metadata\n");
             break;
+        }
+        else {
+            printf("Reading data & metadata complete.\n");
+          // printf("%s",bytes_to_read,read_data_buffer);
         }
 
     } while(FALSE);

@@ -21,9 +21,9 @@
 * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 * SOFTWARE
 *
-* \file 
+* \file
 *
-* \brief   This file implements 
+* \brief   This file implements
 *
 * \ingroup  grOptigaUtil
 * @{
@@ -33,6 +33,7 @@
 #include "optiga/comms/optiga_comms.h"
 #include "optiga/cmd/CommandLib.h"
 #include "optiga/pal/pal_os_timer.h"
+#include "stdio.h"
 
 ///Length of metadata
 #define LENGTH_METADATA             0x1C
@@ -630,7 +631,7 @@ optiga_lib_status_t optiga_util_open_application(optiga_comms_t* p_comms)
 			status = OPTIGA_LIB_ERROR;
 			break;
 		}
-		
+
 		//Set OPTIGA comms context in Command library before invoking the use case APIs or command library APIs
 		//This context will be used by command libary to communicate with OPTIGA using IFX I2C Protocol.
 		CmdLib_SetOptigaCommsContext(p_comms);
@@ -650,6 +651,8 @@ optiga_lib_status_t optiga_util_open_application(optiga_comms_t* p_comms)
 optiga_lib_status_t optiga_util_read_data(uint16_t optiga_oid, uint16_t offset,
                                           uint8_t * p_buffer, uint16_t* buffer_size)
 {
+
+  printf("Trying to read data\n" );
     //lint --e{818} suppress "PpsGPData is out parameter"
     int32_t status  = (int32_t)OPTIGA_LIB_ERROR;
     sGetData_d cmd_params;
@@ -659,6 +662,7 @@ optiga_lib_status_t optiga_util_read_data(uint16_t optiga_oid, uint16_t offset,
     {
         if((NULL == p_buffer) || (NULL == buffer_size) || (0 == *buffer_size))
         {
+            printf("Something was NULL\n" );
             status = (int32_t)OPTIGA_LIB_ERROR;
             break;
         }
@@ -672,11 +676,13 @@ optiga_lib_status_t optiga_util_read_data(uint16_t optiga_oid, uint16_t offset,
         cmd_resp.prgbBuffer = p_buffer;
         cmd_resp.wBufferLength = *buffer_size;
         cmd_resp.wRespLength = 0;
+        printf("Getting data object\n" );
 
         status = CmdLib_GetDataObject(&cmd_params,&cmd_resp);
 
         if(CMD_LIB_OK != status)
         {
+            printf("Failed getting data\n" );
             status = (int32_t)OPTIGA_LIB_ERROR;
             break;
         }

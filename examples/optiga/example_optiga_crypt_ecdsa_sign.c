@@ -36,6 +36,7 @@
 #include <unistd.h>
 #include <ctype.h>
 
+
 #include "optiga/optiga_crypt.h"
 #include "optiga/optiga_util.h"
 #include "optiga/pal/pal_os_event.h"
@@ -87,32 +88,75 @@ static int32_t __optiga_init(void)
 	return status;
 }
 
+int32_t example_toolbox_genkey( void )
+{
+	optiga_lib_status_t return_status;
+	optiga_key_id_t optiga_key_id;
+
+	//To store the generated public key as part of Generate key pair
+	uint8_t public_key [100];
+	uint16_t public_key_length = sizeof(public_key);
+
+	do
+	{
+			/**
+			 * Generate ECC Key pair
+			 *       - Use ECC NIST P 256 Curve
+			 *       - Specify the Key Usage (Key Agreement or Sign based on requirement)
+			 *       - Store the Private key in OPTIGA Key store
+			 *       - Export Public Key
+			 */
+			optiga_key_id = OPTIGA_KEY_STORE_ID_E0F1;
+			//for Session based, use OPTIGA_KEY_ID_SESSION_BASED as key id as shown below.
+			//optiga_key_id = OPTIGA_KEY_ID_SESSION_BASED;
+			return_status = optiga_crypt_ecc_generate_keypair(OPTIGA_ECC_NIST_P_256,
+																												(uint8_t)OPTIGA_KEY_USAGE_SIGN,
+																												FALSE,
+														&optiga_key_id,
+																												public_key,
+																												&public_key_length);
+			if (OPTIGA_LIB_SUCCESS != return_status)
+			{
+		//Key pair generation failed
+					break;
+			}
+			else {
+					for (int i=0; i<100; i++) {
+						 // printf("%u ", public_key[i] );
+						  printf("%02X \t", public_key[i]);
+					}
+					printf("\n");
+				FILE *write_ptr;
+
+				write_ptr = fopen("key.der","wb");  // w for write, b for binary
+
+				fwrite(public_key,sizeof(public_key),1,write_ptr);
+				fclose(write_ptr);
+			}
+
+	} while(FALSE);
+
+	return return_status;
+}
+
+int32_t init_optiga(void) {
+	if (__optiga_init() != OPTIGA_LIB_SUCCESS)
+	{
+		printf("OPTIGA Open Application failed.\n");
+		return OPTIGA_LIB_ERROR;
+	}
+	printf("OPTIGA(TM) Trust X initialized.\n");
+
+}
+
 //int32_t main(int argc, char ** argv)
 //optiga_lib_status_t example_optiga_crypt_ecdsa_sign(void)
-int32_t sign(void)
+int32_t sign(uint8_t * digest, uint8_t digest_length,
+		uint8_t * signature, uint16_t * signature_length)
 {
-    uint8_t digest [] = {
-        // Digest to be signed..
-        // Size of digest to be chosen based on Curve
-        0x61, 0xC7, 0xDE, 0xF9, 0x0F, 0xD5, 0xCD, 0x7A,
-        0x8B, 0x7A, 0x36, 0x41, 0x04, 0xE0, 0x0D, 0x82,
-        0x38, 0x46, 0xBF, 0xB7, 0x70, 0xEE, 0xBF, 0x8F,
-        0x40, 0x25, 0x2E, 0x0A, 0x21, 0x42, 0xAF, 0x9C,
-    };
-
-    uint8_t signature [80];     //To store the signture generated
-    uint16_t signature_length = sizeof(signature);
-
-    /* Initialise OPTIGA(TM) Trust X */
-    if (__optiga_init() != OPTIGA_LIB_SUCCESS)
-    {
-      printf("OPTIGA Open Application failed.\n");
-      return -1;
-    }
-    printf("OPTIGA(TM) Trust X initialized.\n");
-
 
     optiga_lib_status_t return_status;
+    optiga_lib_status_t return_status_ver;
 
     do
     {
@@ -122,10 +166,10 @@ int32_t sign(void)
          *       - Use Private key from Key Store ID E0F0
          */
         return_status = optiga_crypt_ecdsa_sign(digest,
-                                                sizeof(digest),
-						                                    OPTIGA_KEY_STORE_ID_E0F0,
+                                                digest_length,
+						                        OPTIGA_KEY_STORE_ID_E0F0,
                                                 signature,
-                                                &signature_length);
+                                                signature_length);
 
         if (OPTIGA_LIB_SUCCESS != return_status)
         {
@@ -134,11 +178,13 @@ int32_t sign(void)
             break;
         }
 	else {
-	    printf("Successfully signed \n");
+		printf("Successfully signed \n");
+
 	}
 
 
     } while(FALSE);
+
 
     return return_status;
 }

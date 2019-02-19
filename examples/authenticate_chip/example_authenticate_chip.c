@@ -25,7 +25,7 @@
 * \file example_optiga_crypt_ecdsa_sign.c
 *
 * \brief   This file provides the example for ECDSA Sign operation using #optiga_crypt_ecdsa_sign.
-* 
+*
 *
 * \ingroup
 * @{
@@ -35,6 +35,8 @@
 #include "optiga/optiga_util.h"
 #include "optiga/common/AuthLibSettings.h"
 #include "pal_crypt.h"
+#include <openssl/x509.h>
+#include <openssl/pem.h>
 
 ///size of public key for NIST-P256
 #define LENGTH_PUB_KEY_NISTP256     0x41
@@ -115,9 +117,48 @@ uint8_t optiga_ca_certificate[] = {
 * \retval    #OPTIGA_LIB_ERROR
 *
 */
+
+static optiga_lib_status_t __get_chip_cert(uint16_t ,
+		                                   uint8_t* , uint16_t* );
+
+uint32_t save_chip_cert(void)
+{
+	optiga_lib_status_t ret;
+	uint8_t chip_cert[LENGTH_OPTIGA_CERT];
+	uint16_t chip_cert_size = LENGTH_OPTIGA_CERT;
+	uint16_t chip_cert_oid = eDEVICE_PUBKEY_CERT_IFX;
+	printf("Reading chip certificate\n" );
+  ret = __get_chip_cert(chip_cert_oid, chip_cert, &chip_cert_size);
+	printf("Got it\n" );
+	// for (int i=0; i<chip_cert_size;i++) {
+	// 	printf("%x ", chip_cert[i]);
+  // }
+	// printf("\n" );
+
+	const uint8_t * cert_buf;
+	cert_buf = &chip_cert[0];
+	X509 *cert = d2i_X509(NULL, &cert_buf, chip_cert_size);
+
+
+
+	if (cert != NULL) {
+		printf("Generated X509\n");
+		FILE * f;
+		f = fopen("cert.pem", "wb");
+		PEM_write_X509(
+    f,   /* write the certificate to the file we've opened */
+    cert /* our certificate */
+);
+	}
+
+	return 0;
+}
+
 static optiga_lib_status_t __get_chip_cert(uint16_t cert_oid,
 		                                   uint8_t* p_cert, uint16_t* p_cert_size)
 {
+	printf("__get_chip_cert\n" );
+
 	int32_t status  = (int32_t)OPTIGA_LIB_ERROR;
 	// We might need to modify a certificate buffer pointer
 	uint8_t tmp_cert[LENGTH_OPTIGA_CERT];
@@ -125,19 +166,25 @@ static optiga_lib_status_t __get_chip_cert(uint16_t cert_oid,
 
 	do
 	{
+		printf("sanity check\n");
 		// Sanity check
 		if ((NULL == p_cert) || (NULL == p_cert_size) ||
 			(0 == cert_oid) || (0 == *p_cert_size))
 		{
+			printf("Passed NULL to __get_chip_cert\n" );
 			break;
 		}
 
 		//Get end entity device certificate
+		printf("optiga_util_read_data\n");
 		status = optiga_util_read_data(cert_oid, 0, p_tmp_cert_pointer, p_cert_size);
 		if(OPTIGA_LIB_SUCCESS != status)
 		{
+			printf("Failed to optiga_util_read_data\n");
 			break;
 		}
+
+		printf("Retrieved certificate, parsing data\n");
 
 		// Refer to the Solution Reference Manual (SRM) v1.35 Table 30. Certificate Types
 		switch (p_tmp_cert_pointer[0])
@@ -191,111 +238,111 @@ static optiga_lib_status_t __get_chip_cert(uint16_t cert_oid,
 * \retval    #INT_LIB_MALLOC_FAILURE
 *
 */
-static optiga_lib_status_t __authenticate_chip(uint8_t* p_pubkey, uint16_t pubkey_size, uint16_t privkey_oid)
-{
-    int32_t status  = OPTIGA_LIB_ERROR;
-    uint8_t random[LENGTH_CHALLENGE];
-    uint8_t signature[LENGTH_SIGNATURE];
-    uint16_t signature_size = LENGTH_SIGNATURE;
-    uint8_t digest[LENGTH_SHA256];
-
-    do
-    {
-        //Get PwChallengeLen byte random stream
-        status = pal_crypt_random(LENGTH_CHALLENGE, random);
-        if(OPTIGA_LIB_SUCCESS != status)
-        {
-            break;
-        }
-
-        status = pal_crypt_generate_sha256(random, LENGTH_CHALLENGE, digest);
-        if(OPTIGA_LIB_SUCCESS != status)
-        {
-        	status = (int32_t)CRYPTO_LIB_VERIFY_SIGN_FAIL;
-            break;
-        }
-
-		//Sign random with OPTIGA™ Trust X
-        status = optiga_crypt_ecdsa_sign(digest, LENGTH_SHA256,
-									     privkey_oid,
-										 signature, &signature_size);
-        if (OPTIGA_LIB_SUCCESS != status)
-        {
-			// Signature generation failed
-            break;
-        }
-
-		//Verify the signature on the random number by Security Chip
-		status = pal_crypt_verify_signature(p_pubkey, pubkey_size,
-				                            signature, signature_size,
-											digest, LENGTH_SHA256);
-		if(OPTIGA_LIB_SUCCESS != status)
-		{
-			break;
-		}
-	} while (FALSE);
-
-    return status;
-}
-
-/**
- * The below example demonstrates the authetnication of the security chip
- * using third party crypto library.
- *
- * Example for #example_authenticate_chip
- *
- */
-optiga_lib_status_t example_authenticate_chip(void)
-{
-    optiga_lib_status_t status;
-	uint8_t chip_cert[LENGTH_OPTIGA_CERT];
-	uint16_t chip_cert_size = LENGTH_OPTIGA_CERT;
-	uint8_t chip_pubkey[LENGTH_PUB_KEY_NISTP256];
-	uint16_t chip_pubkey_size = LENGTH_PUB_KEY_NISTP256;
-	uint16_t chip_cert_oid = eDEVICE_PUBKEY_CERT_IFX;
-	uint16_t chip_privkey_oid = eFIRST_DEVICE_PRIKEY_1;
-
-    do
-    {
-    	// Initialise pal crypto module
-    	status = pal_crypt_init();
-		if(OPTIGA_LIB_SUCCESS != status)
-		{
-			break;
-		}
-
-		// Retrieve a Certificate of the security chip
-    	status = __get_chip_cert(chip_cert_oid, chip_cert, &chip_cert_size);
-		if(OPTIGA_LIB_SUCCESS != status)
-		{
-			break;
-		}
-
-		// Verify the certificate against the given CA
-		status = pal_crypt_verify_certificate(optiga_ca_certificate, sizeof(optiga_ca_certificate), chip_cert, chip_cert_size);
-		if(CRYPTO_LIB_OK != status)
-		{
-			break;
-		}
-
-		// Extract Public Key from the certificate
-		status = pal_crypt_get_public_key(chip_cert, chip_cert_size, chip_pubkey, &chip_pubkey_size);
-		if(CRYPTO_LIB_OK != status)
-		{
-			break;
-		}
-
-		//Certificate verification
-    	status = __authenticate_chip(chip_pubkey, chip_pubkey_size, chip_privkey_oid);
-		if(OPTIGA_LIB_SUCCESS != status)
-		{
-			break;
-		}
-
-    } while(FALSE);
-
-    return status;
-}
+// static optiga_lib_status_t __authenticate_chip(uint8_t* p_pubkey, uint16_t pubkey_size, uint16_t privkey_oid)
+// {
+//     int32_t status  = OPTIGA_LIB_ERROR;
+//     uint8_t random[LENGTH_CHALLENGE];
+//     uint8_t signature[LENGTH_SIGNATURE];
+//     uint16_t signature_size = LENGTH_SIGNATURE;
+//     uint8_t digest[LENGTH_SHA256];
+//
+//     do
+//     {
+//         //Get PwChallengeLen byte random stream
+//         status = pal_crypt_random(LENGTH_CHALLENGE, random);
+//         if(OPTIGA_LIB_SUCCESS != status)
+//         {
+//             break;
+//         }
+//
+//         status = pal_crypt_generate_sha256(random, LENGTH_CHALLENGE, digest);
+//         if(OPTIGA_LIB_SUCCESS != status)
+//         {
+//         	status = (int32_t)CRYPTO_LIB_VERIFY_SIGN_FAIL;
+//             break;
+//         }
+//
+// 		//Sign random with OPTIGA™ Trust X
+//         status = optiga_crypt_ecdsa_sign(digest, LENGTH_SHA256,
+// 									     privkey_oid,
+// 										 signature, &signature_size);
+//         if (OPTIGA_LIB_SUCCESS != status)
+//         {
+// 			// Signature generation failed
+//             break;
+//         }
+//
+// 		//Verify the signature on the random number by Security Chip
+// 		status = pal_crypt_verify_signature(p_pubkey, pubkey_size,
+// 				                            signature, signature_size,
+// 											digest, LENGTH_SHA256);
+// 		if(OPTIGA_LIB_SUCCESS != status)
+// 		{
+// 			break;
+// 		}
+// 	} while (FALSE);
+//
+//     return status;
+// }
+//
+// /**
+//  * The below example demonstrates the authetnication of the security chip
+//  * using third party crypto library.
+//  *
+//  * Example for #example_authenticate_chip
+//  *
+//  */
+// optiga_lib_status_t example_authenticate_chip(void)
+// {
+//     optiga_lib_status_t status;
+// 	uint8_t chip_cert[LENGTH_OPTIGA_CERT];
+// 	uint16_t chip_cert_size = LENGTH_OPTIGA_CERT;
+// 	uint8_t chip_pubkey[LENGTH_PUB_KEY_NISTP256];
+// 	uint16_t chip_pubkey_size = LENGTH_PUB_KEY_NISTP256;
+// 	uint16_t chip_cert_oid = eDEVICE_PUBKEY_CERT_IFX;
+// 	uint16_t chip_privkey_oid = eFIRST_DEVICE_PRIKEY_1;
+//
+//     do
+//     {
+//     	// Initialise pal crypto module
+//     	status = pal_crypt_init();
+// 		if(OPTIGA_LIB_SUCCESS != status)
+// 		{
+// 			break;
+// 		}
+//
+// 		// Retrieve a Certificate of the security chip
+//     	status = __get_chip_cert(chip_cert_oid, chip_cert, &chip_cert_size);
+// 		if(OPTIGA_LIB_SUCCESS != status)
+// 		{
+// 			break;
+// 		}
+//
+// 		// Verify the certificate against the given CA
+// 		status = pal_crypt_verify_certificate(optiga_ca_certificate, sizeof(optiga_ca_certificate), chip_cert, chip_cert_size);
+// 		if(CRYPTO_LIB_OK != status)
+// 		{
+// 			break;
+// 		}
+//
+// 		// Extract Public Key from the certificate
+// 		status = pal_crypt_get_public_key(chip_cert, chip_cert_size, chip_pubkey, &chip_pubkey_size);
+// 		if(CRYPTO_LIB_OK != status)
+// 		{
+// 			break;
+// 		}
+//
+// 		//Certificate verification
+//     	status = __authenticate_chip(chip_pubkey, chip_pubkey_size, chip_privkey_oid);
+// 		if(OPTIGA_LIB_SUCCESS != status)
+// 		{
+// 			break;
+// 		}
+//
+//     } while(FALSE);
+//
+//     return status;
+// }
 
 #endif // MODULE_ENABLE_ONE_WAY_AUTH
 

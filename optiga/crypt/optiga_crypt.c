@@ -31,7 +31,7 @@
 
 #include "optiga/optiga_crypt.h"
 #include "optiga/pal/pal_os_lock.h"
-
+#include <stdio.h>
 optiga_lib_status_t optiga_crypt_random(optiga_rng_types_t rng_type,
                                         uint8_t * random_data,
                                         uint16_t random_data_length)
@@ -167,7 +167,7 @@ optiga_lib_status_t optiga_crypt_hash_update(optiga_hash_context_t * hash_ctx,
     }
 
     while (1)
-    {   
+    {
         while (pal_os_lock_acquire() != OPTIGA_LIB_SUCCESS);
         return_value = CmdLib_CalcHash(&hash_options);
         pal_os_lock_release();
@@ -226,7 +226,7 @@ optiga_lib_status_t optiga_crypt_hash_finalize(optiga_hash_context_t * hash_ctx,
     hash_options.sContextInfo.pbContextData  = hash_ctx->context_buffer;
     hash_options.sContextInfo.dwContextLen   = hash_ctx->context_buffer_length;
     hash_options.sContextInfo.eContextAction = eImport;
-    
+
     hash_options.sOutHash.prgbBuffer         = hash_output;
 	if(hash_options.eHashAlg == eSHA256)
 	{
@@ -236,7 +236,7 @@ optiga_lib_status_t optiga_crypt_hash_finalize(optiga_hash_context_t * hash_ctx,
     while (pal_os_lock_acquire() != OPTIGA_LIB_SUCCESS);
     return_value = CmdLib_CalcHash(&hash_options);
     pal_os_lock_release();
-    
+
     if (CMD_LIB_OK != return_value)
     {
         return OPTIGA_LIB_ERROR;
@@ -284,11 +284,17 @@ optiga_lib_status_t optiga_crypt_ecc_generate_keypair(optiga_ecc_curve_t curve_i
     pal_os_lock_release();
 
     if (CMD_LIB_OK != return_value)
-    {     
+    {
         return OPTIGA_LIB_ERROR;
     }
     //store updated public key length .
     *( public_key_length) = public_key_out.sPublicKey.wLen;
+
+    printf("the key:\n" );
+    for (int i=0; i<100; i++) {
+       printf("%u ", public_key[i] );
+    }
+    printf("\n");
     return OPTIGA_LIB_SUCCESS;
 }
 
@@ -335,7 +341,7 @@ optiga_lib_status_t optiga_crypt_ecdsa_verify (uint8_t * digest,
     sbBlob_d sign, dgst;
 
     verifysign_options.eSignScheme         = eECDSA_FIPS_186_3_WITHOUT_HASH;
-    verifysign_options.sPubKeyInput.eAlgId = (eAlgId_d )(((public_key_from_host_t *)public_key)->curve);
+    verifysign_options.sPubKeyInput.eAlgId = (eAlgId_d )(OPTIGA_ECC_NIST_P_256);//((public_key_from_host_t *)public_key)->curve);
 
     if (public_key_source_type == OPTIGA_CRYPT_HOST_DATA)
     {
@@ -346,7 +352,7 @@ optiga_lib_status_t optiga_crypt_ecdsa_verify (uint8_t * digest,
     else if (public_key_source_type == OPTIGA_CRYPT_OID_DATA)
     {
         verifysign_options.eVerifyDataType = eOIDData;
-        verifysign_options.wOIDPubKey      = *((uint16_t *)public_key);
+        verifysign_options.wOIDPubKey      = 0xE0E0;//*((uint16_t *)public_key);
     }
 
     dgst.prgbStream = digest;
